@@ -27,7 +27,7 @@ const archived = [
 const snapshot: WorkspaceSnapshot = { configured: true, projects: [{ id: "p1", name: "Parser", path: "/parser", archived: false }, { id: "p2", name: "Docs", path: "/docs", archived: false }],
   sessions: [...sessions, elsewhere], projectsTruncated: false, sessionsTruncated: false, displayTextTruncated: false } as WorkspaceSnapshot;
 // More sessions, older ones, for a table that has to draw more rows than the first ones.
-const older = (count: number) => Array.from({ length: count }, (_, index) => session(`older-${index}`, `Older session ${index + 1}`, `2026-10-${String(20 - index).padStart(2, "0")}T10:00:00Z`));
+const older = (count: number) => Array.from({ length: count }, (_, index) => session(`older-${index}`, `Older session ${index + 1}`, new Date(Date.UTC(2026, 9, 20, 10) - index * 86_400_000).toISOString()));
 let extra = 0;
 const state = { archived: [] as string[][], restored: [] as string[][], removed: [] as string[][], worktrees: [] as string[][], checked: [] as string[][], opened: [] as string[] };
 

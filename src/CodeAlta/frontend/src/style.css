@@ -2230,6 +2230,8 @@ dialog.session-browser > .app-window > .app-window-body { gap: 10px; padding: 12
 .session-browser-title-cell { display: flex; align-items: center; gap: 7px; min-width: 0; height: 100%; }
 .session-browser-title-cell strong { overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
 .session-browser-title-cell small { flex: none; color: var(--red); }
+/* Blueprint draws the names of the columns without pointer events: the sort buttons and the box of the header take them back. */
+.session-browser-results .bp6-table-column-name-text :is(.session-browser-sort, input) { pointer-events: auto; }
 .session-browser-sort { display: flex; align-items: center; gap: 4px; width: 100%; padding: 0; border: 0; color: var(--muted); background: transparent; font-size: 11px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; cursor: pointer; }
 .session-browser-sort:hover { color: var(--text); }
 .session-browser-sort[data-column="messages"] { justify-content: flex-end; }

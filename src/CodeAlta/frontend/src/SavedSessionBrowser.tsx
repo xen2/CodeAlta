@@ -100,7 +100,6 @@ export function SessionBrowser({ snapshot, projectId, stale, open, close, observ
   const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
   const anchor = useRef<string | null>(null);
   // The table of the sessions: its columns fill the width of the window, the title taking what the others leave.
-  const table = useRef<Table2>(null);
   const results = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
   const [height, setHeight] = useState(0);
@@ -212,7 +211,15 @@ export function SessionBrowser({ snapshot, projectId, stale, open, close, observ
   const project = snapshot.projects.filter(row => row.id === projectId);
   const scopeName = scope === null ? t("Chats") : project.length === 1 ? project[0].name : t("ambiguous or missing");
   useEffect(() => { const element = dialog.current!; element.showModal(); search.current?.focus(); return () => element.close(); }, []);
-  useEffect(() => { if (rows[selected]) table.current?.scrollToRegion(Regions.row(selected)); }, [selected, query, scope]);
+  // The selected row is scrolled into view as little as it takes: a row clicked where it is drawn leaves the table where it is.
+  useEffect(() => {
+    const scroller = results.current?.querySelector<HTMLElement>(".bp6-table-quadrant-main .bp6-table-quadrant-scroll-container");
+    if (!scroller || !rows[selected]) return;
+    const top = selected * rowHeight;
+    const shown = scroller.clientHeight - headerHeight;
+    if (top < scroller.scrollTop) scroller.scrollTop = top;
+    else if (top + rowHeight > scroller.scrollTop + shown) scroller.scrollTop = top + rowHeight - shown;
+  }, [selected, query, scope]);
   useEffect(() => {
     const element = results.current;
     if (!element) return;
@@ -273,7 +280,7 @@ export function SessionBrowser({ snapshot, projectId, stale, open, close, observ
     {(stale || refused) && <p role="alert">{t("Catalog, host or selection changed, or identity is ambiguous. Close and reopen the browser; nothing was opened.")}</p>}
     <div ref={results} id="session-browser-results" className="session-browser-results" role="region" aria-label={t(archive ? "Archived sessions" : "Saved sessions")}>
       {/* Drawn once the window is open and measured: the table sees its own resizes only when it starts visible. */}
-      {rows.length > 0 && width > 0 && <Table2 ref={table} numRows={rows.length} enableRowHeader={false} enableMultipleSelection={false} enableColumnInteractionBar={false}
+      {rows.length > 0 && width > 0 && <Table2 numRows={rows.length} enableRowHeader={false} enableMultipleSelection={false} enableColumnInteractionBar={false}
         enableGhostCells={false} defaultRowHeight={rowHeight} columnWidths={columnWidths} selectionModes={SelectionModes.ROWS_AND_CELLS}
         // At most 200 rows: drawn at once. Drawn in batches, the table starts again with each change of what it shows.
         renderMode={RenderMode.NONE}

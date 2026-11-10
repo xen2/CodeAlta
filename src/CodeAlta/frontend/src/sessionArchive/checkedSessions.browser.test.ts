@@ -54,8 +54,16 @@ test("sessions checked in the saved sessions are archived, restored and deleted 
     await command("Page.navigate", { url: pathToFileURL(page).href });
     assert.equal(await wait("window.checkedFixture"), true);
     const box = (title: string) => `${dialog}.querySelector('input[aria-label="Select ${title}"]')`;
-    const all = `${dialog}.querySelector('input[aria-label="Select every session shown"]')`;
-    const shiftClick = (title: string) => `${box(title)}.dispatchEvent(new MouseEvent('click',{bubbles:true,shiftKey:true}))`;
+    // The table draws its header twice, in the rows that scroll and above them: the box seen is the one above.
+    const all = `${dialog}.querySelector('.bp6-table-quadrant-top input[aria-label="Select every session shown"]')`;
+    // A click as the mouse makes it, down and up where the element is drawn: the table sees the press, as with a real mouse.
+    const click = async (element: string, modifiers = 0) => {
+      const [x, y] = await evaluate<[number, number]>(`(()=>{const rect=(${element}).getBoundingClientRect();return [rect.left+rect.width/2,rect.top+rect.height/2]})()`);
+      await command("Input.dispatchMouseEvent", { type: "mouseMoved", x, y, modifiers });
+      await command("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 1, modifiers });
+      await command("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 1, modifiers });
+    };
+    const shift = 8;
     const checkedTitles = `[...${dialog}.querySelectorAll('.session-browser-results input[aria-label^="Select "]:not([aria-label="Select every session shown"])')].filter(input=>input.checked).map(input=>input.getAttribute('aria-label').slice(7))`;
     const status = `${dialog}.querySelector('.checked-footer [role=status]')?.textContent`;
 
@@ -65,29 +73,34 @@ test("sessions checked in the saved sessions are archived, restored and deleted 
     assert.deepEqual(await evaluate(titles), ["Write the tests", "Review the parser", "Check the lexer", "Plan the release"], "Check the lexer is under the session it comes from.");
     assert.equal(await evaluate(`[...${dialog}.querySelectorAll('.session-browser-title-cell')].map(cell=>parseFloat(cell.style.paddingInlineStart)||0).join()`), "0,0,18,0");
     assert.equal(await evaluate(`!!${footerButton("Open")}`), true);
+    // A click on the name of a column sorts by it; on the time, back to the newest first.
+    await click(`${dialog}.querySelector('button[data-column="title"]')`);
+    assert.equal(await wait(`${titles}.join()==='Plan the release,Review the parser,Check the lexer,Write the tests'`), true, await evaluate<string>(`${titles}.join()`));
+    await click(`${dialog}.querySelector('button[data-column="updated"]')`);
+    assert.equal(await wait(`${titles}.join()==='Write the tests,Review the parser,Check the lexer,Plan the release'`), true, await evaluate<string>(`${titles}.join()`));
 
     // A click checks one; a Shift-click the rows down to it, and the sessions below them; the footer says how many.
-    await evaluate(`${box("Write the tests")}.click()`);
+    await click(box("Write the tests"));
     assert.equal(await wait(`${status}==='1 selected'`), true);
-    await evaluate(shiftClick("Review the parser"));
+    await click(box("Review the parser"), shift);
     assert.equal(await wait(`${status}==='3 selected'`), true);
     assert.deepEqual(await evaluate(checkedTitles), ["Write the tests", "Review the parser", "Check the lexer"]);
     assert.equal(await evaluate(`${all}.indeterminate`), true);
     assert.equal(await evaluate(`!!${footerButton("Archive 3")} && !!${footerButton("Delete 3…")}`), true);
     // Unchecking a child unchecks the session above it, which is no longer checked whole; checking its last child checks it again.
-    await evaluate(`${box("Check the lexer")}.click()`);
+    await click(box("Check the lexer"));
     assert.equal(await wait(`${status}==='1 selected'`), true);
     assert.deepEqual(await evaluate(checkedTitles), ["Write the tests"]);
-    await evaluate(`${box("Check the lexer")}.click()`);
+    await click(box("Check the lexer"));
     assert.equal(await wait(`${status}==='3 selected' && ${box("Review the parser")}.checked && !${box("Review the parser")}.indeterminate`), true);
     // The box of the header checks every session shown, then none.
-    await evaluate(`${all}.click()`);
+    await click(all);
     assert.equal(await wait(`${status}==='4 selected'`), true);
-    await evaluate(`${all}.click()`);
+    await click(all);
     assert.equal(await wait(`!${status} && !!${footerButton("Open")}`), true);
 
     // A search shows what it finds with the sessions it belongs to, grayed; it keeps what is checked.
-    await evaluate(`${box("Plan the release")}.click()`);
+    await click(box("Plan the release"));
     await evaluate(`(()=>{const input=${dialog}.querySelector('input[type=search]');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(input,'lexer');input.dispatchEvent(new Event('input',{bubbles:true}))})()`);
     assert.equal(await wait(`${titles}.length===2 && ${status}==='1 selected'`), true);
     assert.deepEqual(await evaluate(titles), ["Review the parser", "Check the lexer"]);
@@ -102,8 +115,8 @@ test("sessions checked in the saved sessions are archived, restored and deleted 
     // Plan has a child session in another project: it is kept. Tests goes, and its worktree is offered.
     await evaluate(`(()=>{const input=${dialog}.querySelector('input[type=search]');const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set;set.call(input,'');input.dispatchEvent(new Event('input',{bubbles:true}))})()`);
     assert.equal(await wait(`${titles}.length===4`), true);
-    await evaluate(`${box("Write the tests")}.click()`);
-    await evaluate(`${box("Plan the release")}.click()`);
+    await click(box("Write the tests"));
+    await click(box("Plan the release"));
     await evaluate(`${footerButton("Delete 2…")}.click()`);
     assert.equal(await wait(confirm), true);
     assert.equal(await evaluate(`${dialog}.contains(${confirm})`), true, "The question opens in the modal window, not under it.");
@@ -121,7 +134,7 @@ test("sessions checked in the saved sessions are archived, restored and deleted 
     await evaluate(`${footerButton("Clear selection")}.click()`);
 
     // Review is checked with its child: both go, the child first.
-    await evaluate(`${box("Review the parser")}.click()`);
+    await click(box("Review the parser"));
     assert.equal(await wait(`${status}==='2 selected'`), true);
     await evaluate(`${footerButton("Delete 2…")}.click()`);
     assert.equal(await wait(`${confirm}?.textContent.includes('Delete 2 sessions?')`), true);
@@ -135,16 +148,16 @@ test("sessions checked in the saved sessions are archived, restored and deleted 
     assert.deepEqual((await state<string[][]>("removed"))[1], ["check", "review"]);
 
     // Archive archives the checked ones at once.
-    await evaluate(`${box("Plan the release")}.click()`);
+    await click(box("Plan the release"));
     await evaluate(`${footerButton("Archive 1")}.click()`);
     assert.equal(await wait(`!${status}`), true);
     assert.deepEqual(await state("archived"), [["plan"]]);
 
     // Under Archived, the checked ones are restored together; changing the view unchecks everything.
-    await evaluate(`${box("Write the tests")}.click()`);
+    await click(box("Write the tests"));
     await evaluate(`${archivedButton}.click()`);
     assert.equal(await wait(`${titles}.length===2 && !${status}`), true);
-    await evaluate(`${all}.click()`);
+    await click(all);
     assert.equal(await wait(`${status}==='2 selected'`), true);
     await evaluate(`${footerButton("Restore 2")}.click()`);
     assert.equal(await wait(`!${status}`), true);
@@ -156,6 +169,37 @@ test("sessions checked in the saved sessions are archived, restored and deleted 
     assert.equal(await wait(`${dialog} && ${titles}.length===12`), true, await evaluate<string>(`String(${titles}.length)`));
     assert.equal(await wait(`${dialog}.querySelectorAll('.session-browser-results .bp6-table-cell.session-browser-messages').length===12`), true);
     assert.equal(await evaluate(`!!${dialog}.querySelector('button[data-column="messages"]')`), true);
+
+    // More sessions than the table shows: a click on a row selects it where it is, the table does not scroll to it;
+    // a Shift-click on a box checks the rows from the one checked before.
+    await evaluate("checkedFixture.show(30)");
+    assert.equal(await wait(`${dialog}?.querySelector('.session-browser-toolbar [role=status]')?.textContent.startsWith('34 of 34 sessions')`), true);
+    const scroller = `${dialog}.querySelector('.bp6-table-quadrant-main .bp6-table-quadrant-scroll-container')`;
+    assert.equal(await evaluate(`${scroller}.scrollHeight>${scroller}.clientHeight+300`), true, "The rows are taller than the table.");
+    await evaluate(`${scroller}.scrollTop=300`);
+    assert.equal(await wait(`${scroller}.scrollTop===300`), true);
+    const titleCell = (title: string) => `[...${dialog}.querySelectorAll('.bp6-table-cell.session-browser-title')].find(cell=>cell.querySelector('.session-browser-name')?.textContent===${JSON.stringify(title)})`;
+    await click(titleCell("Older session 14"));
+    assert.equal(await wait(`${titleCell("Older session 14")}.classList.contains('session-browser-selected')`), true);
+    assert.equal(await evaluate(`${scroller}.scrollTop`), 300, "The table stays where it was.");
+    // A key that selects a row out of view scrolls just enough to show it, at the edge it comes from.
+    await evaluate(`${scroller}.scrollTop=0`);
+    await evaluate(`${dialog}.querySelector('input[type=search]').focus()`);
+    await command("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "ArrowDown", code: "ArrowDown", windowsVirtualKeyCode: 40 });
+    await command("Input.dispatchKeyEvent", { type: "keyUp", key: "ArrowDown", code: "ArrowDown", windowsVirtualKeyCode: 40 });
+    assert.equal(await wait(`${titleCell("Older session 15")}?.classList.contains('session-browser-selected')`), true);
+    assert.equal(await wait(`(()=>{const cell=${titleCell("Older session 15")}.getBoundingClientRect(),view=${scroller}.getBoundingClientRect();return Math.abs(cell.bottom-view.bottom)<2})()`), true,
+      await evaluate<string>(`JSON.stringify([${titleCell("Older session 15")}?.getBoundingClientRect(),${scroller}.getBoundingClientRect(),${scroller}.scrollTop])`));
+    await evaluate(`${scroller}.scrollTop=300`);
+    assert.equal(await wait(`${scroller}.scrollTop===300`), true);
+    await click(box("Older session 12"));
+    assert.equal(await wait(`${status}==='1 selected'`), true);
+    await click(box("Older session 15"), shift);
+    assert.equal(await wait(`${status}==='4 selected'`), true, await evaluate<string>(`String(${status})`));
+    assert.deepEqual(await evaluate(checkedTitles), ["Older session 12", "Older session 13", "Older session 14", "Older session 15"]);
+    assert.equal(await evaluate(`${scroller}.scrollTop`), 300);
+    await click(all);
+    assert.equal(await wait(`${status}==='34 selected'`), true, await evaluate<string>(`String(${status})`));
   } finally {
     socket?.close();
     await endBrowser(browser);

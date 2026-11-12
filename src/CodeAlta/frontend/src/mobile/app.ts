@@ -27,6 +27,7 @@ import {
 } from "./selection";
 import { safeColor, sessionMeta, showSpaces } from "./sessionMeta";
 import { createSessionList } from "./sessionList";
+import { installSelectionScope } from "./selectionScope";
 import { topLevelCount } from "./sessionTree";
 import { createSheet } from "./sheet";
 import { ago, pageSize, readSizes, createSessionStore, type SessionView } from "./sessionStore";
@@ -52,6 +53,9 @@ export function startMobile(window: Window & typeof globalThis) {
 
   // ---- The menu of "⋯" in the top bar: the commands that do not fit the bar, and the appearance ----
   const barMenu = createBarMenu({ window, button: $<HTMLButtonElement>("bar-more"), menu: $("bar-menu") });
+
+  // ---- Select all keeps to the code, the message or the file the selection is in (selectionScope.ts) ----
+  installSelectionScope(window);
 
   // ---- Appearance: the theme (Auto follows the system) and the text size, kept on the phone ----
   const systemLight = window.matchMedia("(prefers-color-scheme: light)");

@@ -21,7 +21,7 @@ test("Select all on the phone selects the code, then the message, then the timel
     server.state.events.set("s1", events);
     server.state.linkedFiles.set(`s1/${answer.seq}/docs/notes.md`, "# Notes\n\nUse `alta job start` for long runs.\n\nThe rest of the notes.");
   }, "");
-  const { evaluate, waitFor, click } = phone;
+  const { evaluate, waitFor, click, command } = phone;
   // Selects the text from a word to another (or the word alone), as a long press and the handles do.
   const select = (root: string, from: string, to = from) => evaluate<boolean>(`(() => {
     const walker = document.createTreeWalker(document.querySelector(${JSON.stringify(root)}), NodeFilter.SHOW_TEXT), at = word => {
@@ -34,8 +34,8 @@ test("Select all on the phone selects the code, then the message, then the timel
     return true;
   })()`);
   // Select all as the menu of a selection or Ctrl+A run it, then the part the selection holds whole and its text.
-  const selectAll = () => evaluate<{ part: string; text: string }>(`(() => {
-    document.execCommand("selectAll");
+  const selectAll = async () => { await evaluate('document.execCommand("selectAll")'); return selected(); };
+  const selected = () => evaluate<{ part: string; text: string }>(`(() => {
     const range = getSelection().getRangeAt(0), part = range.commonAncestorContainer;
     const name = part.nodeType === Node.ELEMENT_NODE ? part.tagName.toLowerCase() + (part.id ? "#" + part.id : "") + (part.className ? "." + part.className.split(" ").join(".") : "") : "text";
     return { part: name, text: getSelection().toString().trim() };
@@ -70,25 +70,88 @@ test("Select all on the phone selects the code, then the message, then the timel
     assert.ok(await select(message, "npm", "commit"));
     assert.equal((await selectAll()).part, "div.markdown-content");
 
+    // ---- The bar: above the selection, Copy copies its text and the other button selects the next part ----
+    // A browser without a person refuses the clipboard: this one holds what is written.
+    await evaluate('Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async text => { window.copied = text; } } })');
+    await command("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
+    // A tap of a finger on the middle of an element, with the touch and pointer events of a phone.
+    const tap = async (selector: string) => {
+      const [x, y] = await evaluate<number[]>(`(() => { const box = document.querySelector(${JSON.stringify(selector)}).getBoundingClientRect(); return [box.x + box.width / 2, box.y + box.height / 2]; })()`);
+      await command("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+      await command("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    };
+    const copy = 'document.querySelector(".select-copy")';
+    // Whether the bar shows, and the name of its other button, or null without it.
+    const bar = () => evaluate<{ shown: boolean; wider: string | null }>(`(() => {
+      const bar = document.querySelector(".select-bar"), wider = bar?.querySelector(".select-wider");
+      return { shown: !!bar && !bar.hidden, wider: wider && !wider.hidden ? wider.textContent : null };
+    })()`);
+    assert.ok(await select(message, "test"));
+    await selectAll();
+    assert.deepEqual(await bar(), { shown: true, wider: "Select message" }, "a bar for the selection Select all made");
+    const place = await evaluate<{ bar: number[]; selection: number[]; top: number }>(`(() => {
+      const box = document.querySelector(".select-bar").getBoundingClientRect(), selected = getSelection().getRangeAt(0).getBoundingClientRect();
+      return { bar: [box.left, box.top, box.right, box.bottom], selection: [selected.left, selected.top, selected.right], top: document.getElementById("bar").getBoundingClientRect().bottom };
+    })()`);
+    assert.ok(place.bar[3] <= place.selection[1] && place.bar[1] >= place.top, `just above the selection, under the top bar: ${JSON.stringify(place)}`);
+    assert.ok(place.bar[0] < place.selection[2] && place.bar[2] > place.selection[0], `over the selection: ${JSON.stringify(place)}`);
+    await tap(".select-copy");
+    await waitFor(`${copy}.dataset.state === "copied"`, "the copy");
+    assert.deepEqual(await evaluate<string[]>(`[window.copied, ${copy}.textContent, getSelection().toString()]`), ["npm test", "Copied", "npm test"]);
+    await waitFor(`${copy}.textContent === "Copy" && !${copy}.dataset.state`, "Copy again after the copy");
+    assert.deepEqual(await bar(), { shown: true, wider: "Select message" }, "the bar stays with the selection");
+    // Its other button selects the message, then the timeline, as Select all does; Copy copies what it selected.
+    await tap(".select-wider");
+    step = await selected();
+    assert.equal(step.part, "div.markdown-content");
+    assert.deepEqual(await bar(), { shown: true, wider: "Select all messages" });
+    await tap(".select-copy");
+    await waitFor(`${copy}.dataset.state === "copied"`, "the copy of the message");
+    assert.equal((await evaluate<string>("window.copied")).trim(), step.text);
+    await tap(".select-wider");
+    assert.equal((await selected()).part, "ol#timeline.timeline");
+    assert.deepEqual(await bar(), { shown: true, wider: null }, "only Copy for the timeline");
+    // The selection going, or a tap elsewhere, takes the bar away.
+    await evaluate("getSelection().collapseToStart()");
+    await waitFor("document.querySelector('.select-bar').hidden", "the bar gone with the selection");
+    assert.ok(await select(message, "commit"));
+    await selectAll();
+    assert.equal((await bar()).shown, true);
+    await evaluate('document.getElementById("timeline").dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }))');
+    assert.equal((await bar()).shown, false, "a tap elsewhere");
+    await evaluate('window.dispatchEvent(new PointerEvent("pointerup"))');
+    // A copy the browser refuses says so, and the bar stays.
+    await evaluate('Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async () => { throw new Error("denied."); } } })');
+    assert.ok(await select(message, "commit"));
+    await selectAll();
+    await tap(".select-copy");
+    await waitFor('document.getElementById("toast").textContent === "Not copied: denied."', "the failure");
+    assert.deepEqual(await bar(), { shown: true, wider: "Select all messages" });
+
     // ---- A thought of an open activity: the thought, the activity, the timeline ----
     await click("#timeline .act-toggle");
     await waitFor('document.querySelector("#timeline .act-body .msg-reasoning")', "the open activity");
     assert.ok(await select("#timeline .act-body .msg-reasoning", "build"));
     assert.deepEqual(await selectAll(), { part: "div.markdown-content", text: "Looking at the build first." });
+    assert.equal((await bar()).wider, "Select work");
     assert.equal((await selectAll()).part, "div.act-body");
+    assert.equal((await bar()).wider, "Select all messages");
     assert.equal((await selectAll()).part, "ol#timeline.timeline");
 
     // ---- Outside any part (the title of the session), the browser selects the page as before ----
     assert.ok(await select("#detail-title", "parser"));
     assert.ok(["html", "body"].includes((await selectAll()).part.split(/[#.]/u)[0]), "the whole page");
+    await waitFor("document.querySelector('.select-bar').hidden", "no bar for the browser's own selection");
 
     // ---- A file shown full screen: its code, then its text, never the title or the session under it ----
     await evaluate('[...document.querySelectorAll("#timeline li.msg a")].find(a => a.textContent === "the notes").click()');
     await waitFor('document.querySelector(".output-viewer-drawn")?.textContent.includes("The rest of the notes.")', "the drawn file");
     assert.ok(await select(".output-viewer-drawn", "job"));
     assert.deepEqual(await selectAll(), { part: "code", text: "alta job start" });
+    assert.equal((await bar()).wider, "Select file");
     step = await selectAll();
     assert.equal(step.part, "div.output-viewer-drawn.markdown-content");
+    assert.deepEqual(await bar(), { shown: true, wider: null }, "only Copy for the whole file");
     assert.ok(step.text.startsWith("Notes") && step.text.endsWith("The rest of the notes."), step.text);
     assert.equal((await selectAll()).part, "div.output-viewer-drawn.markdown-content", "nothing wider in the file");
     assert.ok(await select(".output-viewer-title", "notes"));

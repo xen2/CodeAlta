@@ -27,8 +27,9 @@ internal sealed partial class BuiltInAltaCommandContributor
     {
         var sessionIds = new List<string>();
         var dryRun = false;
-        var command = Leaf("delete", "Delete archived sessions and every session below them, after the user agrees on a card of this session.");
-        command.Add("<session-id>*", "CodeAlta session ids.", value => { if (value is not null) sessionIds.Add(value); });
+        // An agent that loops over the sessions asks the user once per session: the descriptions a script reads say it.
+        var command = Leaf("delete", "Delete archived sessions and every session below them, after the user agrees on a card of this session: name them all in one call, since each call shows a card of its own.");
+        command.Add("<session-id>*", "CodeAlta session ids, all in one call (an array in a script): each call asks the user again.", value => { if (value is not null) sessionIds.Add(value); });
         command.Add("dry-run", "List what would be deleted, the sessions below included, without asking or deleting.", value => dryRun = value is not null);
         command.Add(async (_, _) => await HandleSessionDeleteAsync(context, sessionIds, dryRun).ConfigureAwait(false));
         AddHelpText(command,

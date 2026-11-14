@@ -138,6 +138,24 @@ public sealed class AltaScriptBindingTests
     }
 
     [TestMethod]
+    public void SessionDelete_TellsAScriptToNameEverySessionInOneCall_AndTakesThemAsAnArray()
+    {
+        using var root = TestTempDirectory.Create();
+        var (_, binding) = Create(root.Path);
+        var delete = binding.Functions.Single(static function => function.Path == "alta.session.delete");
+
+        // Each call asks on a card of its own: a script that loops over the sessions would ask the user once per session.
+        StringAssert.Contains(delete.Description!, "in one call");
+        using var schema = JsonDocument.Parse(delete.InputSchemaJson!);
+        var sessionId = schema.RootElement.GetProperty("properties").GetProperty("sessionId");
+        Assert.AreEqual("array", sessionId.GetProperty("type").GetString());
+        StringAssert.Contains(sessionId.GetProperty("description").GetString(), "in one call");
+
+        Assert.IsTrue(binding.TryCreateCommandLine("alta.session.delete", """{"sessionId":["a","b"]}""", out var line, out var error), error?.Message);
+        CollectionAssert.AreEqual(new[] { "session", "delete", "a", "b" }, line!.Arguments.ToArray());
+    }
+
+    [TestMethod]
     public void AMissingRequiredArgument_IsRefusedBeforeTheCommandRuns()
     {
         using var root = TestTempDirectory.Create();

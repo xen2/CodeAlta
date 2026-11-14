@@ -63,4 +63,15 @@ export const sessionChildrenMessages = {
   "Deletion may have completed. Check the sessions again; nothing will be retried.": ["Puede que la eliminación se haya completado. Revisa las sesiones; no se reintentará nada.",
     "La suppression a peut-être eu lieu. Vérifiez les sessions ; rien ne sera réessayé.", "Das Löschen ist vielleicht erfolgt. Prüfe die Sitzungen; nichts wird wiederholt.",
     "削除は完了した可能性があります。セッションをもう一度確認してください。再試行はしません。", "删除可能已完成。请再次检查会话；不会重试。"],
+  // The card of a session that asks to delete archived sessions (`alta session delete`).
+  "Delete this archived session?": ["¿Eliminar esta sesión archivada?", "Supprimer cette session archivée ?", "Diese archivierte Sitzung löschen?",
+    "このアーカイブ済みセッションを削除しますか？", "删除此已归档的会话吗？"],
+  "Delete {count} archived sessions?": ["¿Eliminar {count} sesiones archivadas?", "Supprimer {count} sessions archivées ?", "{count} archivierte Sitzungen löschen?",
+    "アーカイブ済みのセッション {count} 件を削除しますか？", "删除 {count} 个已归档的会话吗？"],
+  "An agent asks to delete these sessions and the sessions below them, with their history. They cannot be restored.": [
+    "Un agente pide eliminar estas sesiones y las sesiones que dependen de ellas, con su historial. No se pueden restaurar.",
+    "Un agent demande de supprimer ces sessions et les sessions sous elles, avec leur historique. Elles ne pourront pas être restaurées.",
+    "Ein Agent möchte diese Sitzungen und die Sitzungen darunter samt ihrem Verlauf löschen. Sie können nicht wiederhergestellt werden.",
+    "エージェントが、これらのセッションとその下のセッションを履歴ごと削除しようとしています。元に戻すことはできません。",
+    "某个代理请求删除这些会话及其下的会话，包括其历史记录。删除后无法恢复。"],
 } as const;

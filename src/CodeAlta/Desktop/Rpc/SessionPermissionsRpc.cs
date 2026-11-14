@@ -69,15 +69,17 @@ internal sealed class SessionPermissionsService
                 // half-filled request is refused rather than shown with a blank command or a blank folder.
                 var shaped = entry?.Request is { } value && value.Kind switch
                 {
-                    "commandExecution" => Text(value.Command, 4096, true) && Text(value.WorkingDirectory, 1024, true) && value.GrantRoot is null && value.Skill is null && value.Browser is null,
-                    "fileChange" => Text(value.GrantRoot, 1024, true) && value.Command is null && value.WorkingDirectory is null && value.Skill is null && value.Browser is null,
+                    "commandExecution" => Text(value.Command, 4096, true) && Text(value.WorkingDirectory, 1024, true) && value.GrantRoot is null && value.Skill is null && value.Browser is null && value.SessionDeletion is null,
+                    "fileChange" => Text(value.GrantRoot, 1024, true) && value.Command is null && value.WorkingDirectory is null && value.Skill is null && value.Browser is null && value.SessionDeletion is null,
                     "browser" => value.Browser is { } browser && Identity(browser.Browser) && Identity(browser.Profile) && (browser.Site is null || Identity(browser.Site))
-                        && value.Command is null && value.WorkingDirectory is null && value.GrantRoot is null && value.Skill is null,
+                        && value.Command is null && value.WorkingDirectory is null && value.GrantRoot is null && value.Skill is null && value.SessionDeletion is null,
                     "skill" => value.Skill is { } skill && Identity(skill.Server) && Identity(skill.Name) && Text(skill.Uri, 1024, true)
-                        && skill.FileCount >= 0 && skill.TotalBytes is >= 0 and <= int.MaxValue && value.Command is null && value.WorkingDirectory is null && value.GrantRoot is null && value.Browser is null,
+                        && skill.FileCount >= 0 && skill.TotalBytes is >= 0 and <= int.MaxValue && value.Command is null && value.WorkingDirectory is null && value.GrantRoot is null && value.Browser is null && value.SessionDeletion is null,
                     "credential" => value.Credential is { } credential && credential.Action is "bind" or "unbind" or "add_provider" or "remove_provider" or AgentCredentialPermissionRequest.SignInAction
                         && Identity(credential.Subject) && Text(credential.Detail, 1024, true)
-                        && value.Command is null && value.WorkingDirectory is null && value.GrantRoot is null && value.Skill is null && value.Browser is null,
+                        && value.Command is null && value.WorkingDirectory is null && value.GrantRoot is null && value.Skill is null && value.Browser is null && value.SessionDeletion is null,
+                    AgentSessionDeletionPermissionRequest.SessionDeletionKind => value.SessionDeletion is { Count: > 0 } deletion && Text(deletion.Detail, 4096, true)
+                        && value.Command is null && value.WorkingDirectory is null && value.GrantRoot is null && value.Skill is null && value.Browser is null && value.Credential is null,
                     _ => false,
                 };
                 if (entry?.Handle is not { } handle || entry.Request is not { } summary || handle.Attempt is null
@@ -97,6 +99,7 @@ internal sealed class SessionPermissionsService
                         : null,
                     Browser = summary.Browser is { } browserSummary ? new(browserSummary.Browser, browserSummary.Profile, browserSummary.Site) : null,
                     Credential = summary.Credential is { } credentialSummary ? new(credentialSummary.Action, credentialSummary.Subject, credentialSummary.Detail) : null,
+                    SessionDeletion = summary.SessionDeletion is { } deletionSummary ? new(deletionSummary.Count, deletionSummary.Detail) : null,
                 });
             }
             // Four complete commands, each <=6,144 text + 512 identity UTF-16 units. Worst-case six-byte
@@ -196,7 +199,8 @@ internal sealed record SessionPermissionCommandHandle(string OperationId, string
 /// One pending permission of a session. <paramref name="Kind"/> says which shape it has: a
 /// <c>commandExecution</c> carries <paramref name="Command"/> and <paramref name="WorkingDirectory"/> and no
 /// <paramref name="GrantRoot"/>; a <c>fileChange</c> carries only <paramref name="GrantRoot"/>; a <c>skill</c> carries only
-/// <see cref="Skill"/>, the skill of an MCP server it asks to load; a <c>browser</c> carries only <see cref="Browser"/>.
+/// <see cref="Skill"/>, the skill of an MCP server it asks to load; a <c>browser</c> carries only <see cref="Browser"/>; a
+/// <c>sessionDeletion</c> carries only <see cref="SessionDeletion"/>, the archived sessions it asks to delete.
 /// </summary>
 internal sealed record SessionPermissionCommand(SessionPermissionCommandHandle Handle, string ProviderId, string Kind,
     string? Command, string? WorkingDirectory, string? GrantRoot, string? Reason)
@@ -215,7 +219,12 @@ internal sealed record SessionPermissionCommand(SessionPermissionCommandHandle H
 
     /// <summary>The change of the vaults a <c>credential</c> request asks; null for another kind.</summary>
     public SessionPermissionCredentialEntry? Credential { get; init; }
+
+    /// <summary>The archived sessions a <c>sessionDeletion</c> request asks to delete; null for another kind.</summary>
+    public SessionPermissionSessionDeletionEntry? SessionDeletion { get; init; }
 }
+/// <summary>The archived sessions an agent asks to delete: how many, the sessions below included, and one line per session.</summary>
+internal sealed record SessionPermissionSessionDeletionEntry(int Count, string Detail);
 /// <summary>A change of where the secrets are kept that an agent asks: never a value.</summary>
 internal sealed record SessionPermissionCredentialEntry(string Action, string Subject, string Detail);
 /// <summary>The user's own browser a permission asks to drive: for the session, or for a <paramref name="Site"/>, which can be allowed from now on.</summary>

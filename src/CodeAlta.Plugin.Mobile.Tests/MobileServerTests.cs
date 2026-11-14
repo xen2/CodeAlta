@@ -268,6 +268,7 @@ public sealed class MobileServerTests
         [
             new PluginPermissionRequest { RequestId = id, Kind = "commandExecution", Command = "git push", WorkingDirectory = "C:/code", Reason = "To publish.", Shortened = true, OutsideSandbox = true },
             new PluginPermissionRequest { RequestId = Guid.NewGuid().ToString(), Kind = "skill", SkillServer = "hf", SkillName = "transformers" },
+            new PluginPermissionRequest { RequestId = Guid.NewGuid().ToString(), Kind = "sessionDeletion", Detail = "\"Old work\" — chat, updated 2026-11-01", Count = 3 },
         ];
         var requests = (JsonArray)JsonNode.Parse(await fixture.Client.GetStringAsync("/api/sessions/known/permissions"))!["requests"]!;
         Assert.AreEqual((id, "commandExecution", "git push", "C:/code", "To publish."),
@@ -276,6 +277,8 @@ public sealed class MobileServerTests
         Assert.IsTrue((bool)requests[0]!["outsideSandbox"]!);
         Assert.IsNull(requests[0]!["skill"]);
         Assert.AreEqual(("hf", "transformers"), ((string?)requests[1]!["skill"]!["server"], (string?)requests[1]!["skill"]!["name"]));
+        Assert.AreEqual(("sessionDeletion", "\"Old work\" — chat, updated 2026-11-01", 3), ((string?)requests[2]!["kind"], (string?)requests[2]!["detail"], (int)requests[2]!["count"]!),
+            "The sessions an agent asks to delete, as the window lists them.");
 
         async Task<JsonNode> ResolveAsync(string session, string request, string decision)
             => JsonNode.Parse(await (await fixture.PostAsync($"/api/sessions/{session}/permissions/resolve", new JsonObject { ["requestId"] = request, ["decision"] = decision })).Content.ReadAsStringAsync())!;

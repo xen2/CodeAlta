@@ -6,6 +6,8 @@ import type { ApprovalRequest, Live } from "./contract";
 const command: ApprovalRequest = { id: "r1", kind: "commandExecution", command: "git push", workingDirectory: "C:/code", grantRoot: null, reason: null, shortened: false, outsideSandbox: false, skill: null };
 const files: ApprovalRequest = { ...command, id: "r2", kind: "fileChange", command: null, workingDirectory: null, grantRoot: "C:/code", reason: "via Edit: src/a.ts" };
 const skill: ApprovalRequest = { ...command, id: "r3", kind: "skill", command: null, workingDirectory: null, skill: { server: "hf", name: "transformers" } };
+const deletion: ApprovalRequest = { ...command, id: "r4", kind: "sessionDeletion", command: null, workingDirectory: null,
+  detail: "\"Old work\" — chat, updated 2026-11-01, 2 sessions below", count: 3 };
 const live = (approving: Live["approving"]): Live => ({ id: "s", live: "running", kind: null, line: null, at: null, activity: null, canSteer: true, approving });
 
 test("a session waits while it has a request, also while its turn runs", () => {
@@ -30,6 +32,9 @@ test("a card says what is asked, for each kind of request", () => {
   assert.equal(approvalSubject(files), "C:/code");
   assert.equal(approvalQuestion(skill), "Load this skill?");
   assert.equal(approvalSubject(skill), "transformers (hf)");
+  assert.equal(approvalQuestion(deletion), "Delete 3 archived sessions?");
+  assert.equal(approvalQuestion({ ...deletion, count: 1 }), "Delete this archived session?");
+  assert.equal(approvalSubject(deletion), "\"Old work\" — chat, updated 2026-11-01, 2 sessions below", "never a folder: the sessions it deletes");
 });
 
 test("a card is drawn again only when what it shows changes", () => {

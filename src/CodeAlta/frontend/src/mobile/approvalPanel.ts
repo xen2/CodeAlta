@@ -113,6 +113,7 @@ export function createApprovalPanel(options: Readonly<{
     if (request.workingDirectory) card.append(el(document, "p", "approval-detail approval-folder", request.workingDirectory));
     if (request.reason?.trim()) card.append(el(document, "p", "approval-detail approval-reason", request.reason));
     if (request.outsideSandbox) card.append(el(document, "p", "approval-warning", "This runs outside the sandbox of the session."));
+    if (request.kind === "sessionDeletion") card.append(el(document, "p", "approval-warning", "These sessions and the sessions below them are deleted with their history: they cannot be restored."));
     if (request.shortened) card.append(el(document, "p", "approval-warning", "This request is too long to show in full: allowing it allows more than what is shown here."));
     if (state.note) {
       const note = el(document, "p", "ask-note", state.note);
@@ -120,7 +121,8 @@ export function createApprovalPanel(options: Readonly<{
       card.append(note);
     }
     const actions = el(document, "div", "approval-actions");
-    for (const [decision, label, className] of [["deny", "Deny", "ghost"], ["allow_once", "Allow once", "primary"]] as const) {
+    const allow = request.kind === "sessionDeletion" ? "Delete" : "Allow once";
+    for (const [decision, label, className] of [["deny", "Deny", "ghost"], ["allow_once", allow, "primary"]] as const) {
       const button = el(document, "button", className, label);
       button.type = "button";
       button.dataset.decision = decision;

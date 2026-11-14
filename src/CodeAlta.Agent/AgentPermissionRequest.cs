@@ -19,6 +19,7 @@ namespace CodeAlta.Agent;
 [JsonDerivedType(typeof(AgentSkillPermissionRequest), "skill")]
 [JsonDerivedType(typeof(AgentBrowserPermissionRequest), "browser")]
 [JsonDerivedType(typeof(AgentCredentialPermissionRequest), "credential")]
+[JsonDerivedType(typeof(AgentSessionDeletionPermissionRequest), "sessionDeletion")]
 public abstract record AgentPermissionRequest(
     ModelProviderId ProviderId,
     string SessionId,
@@ -198,6 +199,33 @@ public sealed record AgentCredentialPermissionRequest(
 
     /// <summary>The action of a sign-in to a website, which the user can allow for that site.</summary>
     public const string SignInAction = "sign_in";
+}
+
+/// <summary>
+/// Permission request of an agent to delete archived sessions of CodeAlta, with every session below them: what
+/// <c>alta session delete</c> asks before it deletes. It is asked in every permission mode: no mode answers it for the
+/// user, and a host without a user denies it. It is allowed once only.
+/// </summary>
+/// <param name="ProviderId">The model provider identifier.</param>
+/// <param name="SessionId">The session identifier.</param>
+/// <param name="Timestamp">The event timestamp.</param>
+/// <param name="RunId">Optional run identifier.</param>
+/// <param name="InteractionId">Stable interaction identifier.</param>
+/// <param name="Count">The number of sessions that would be deleted, the sessions below them included.</param>
+/// <param name="Detail">The sessions, one per line: the title in quotes, where it is, its last update, the sessions below
+/// it and its bookmarks.</param>
+public sealed record AgentSessionDeletionPermissionRequest(
+    ModelProviderId ProviderId,
+    string SessionId,
+    DateTimeOffset Timestamp,
+    AgentRunId? RunId,
+    string InteractionId,
+    int Count,
+    string Detail)
+    : AgentPermissionRequest(ProviderId, SessionId, Timestamp, RunId, InteractionId, Kind: AgentSessionDeletionPermissionRequest.SessionDeletionKind)
+{
+    /// <summary>The kind of the request.</summary>
+    public const string SessionDeletionKind = "sessionDeletion";
 }
 
 /// <summary>

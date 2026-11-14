@@ -44,6 +44,9 @@ public sealed record SessionPermissionSnapshot(
     /// <summary>Gets the change of the vaults the request asks, for a request of kind <c>credential</c>; null otherwise.</summary>
     public SessionPermissionCredential? Credential { get; init; }
 
+    /// <summary>Gets the sessions the request asks to delete, for a request of kind <c>sessionDeletion</c>; null otherwise.</summary>
+    public SessionPermissionSessionDeletion? SessionDeletion { get; init; }
+
     /// <summary>
     /// Gets a value indicating whether a sandboxed session asks to run the command outside its sandbox
     /// (<see cref="AgentCommandPermissionRequest.OutsideSandbox"/>): no permission mode answers it for the user.
@@ -56,6 +59,11 @@ public sealed record SessionPermissionSnapshot(
 /// <param name="Subject">The name of the secret, or the id of the provider.</param>
 /// <param name="Detail">What happens, in a sentence.</param>
 public sealed record SessionPermissionCredential(string Action, string Subject, string Detail);
+
+/// <summary>The archived sessions an agent asks to delete, as the review shows them.</summary>
+/// <param name="Count">The number of sessions deleted, the sessions below them included.</param>
+/// <param name="Detail">The sessions, one per line.</param>
+public sealed record SessionPermissionSessionDeletion(int Count, string Detail);
 
 /// <summary>The skill of an MCP server a permission request asks to load, as the review shows it.</summary>
 /// <param name="Server">The key of the server that publishes it.</param>
@@ -243,20 +251,23 @@ public sealed partial class SessionPermissionService : IAsyncDisposable
             ? "only the user can let a session sign in to a website with their sign-in, and this run has no user"
             : request is AgentCredentialPermissionRequest
             ? "only the user can change where their secrets are kept, and this run has no user"
+            : request is AgentSessionDeletionPermissionRequest
+            ? "only the user can let an agent delete sessions, and this run has no user"
             : "only the user can let a session use their own browser, and this run has no user";
 
     // A request no permission mode answers for the user: the load of a skill of an MCP server, whose instructions may ask
     // for commands, and a command a sandboxed session asks to run outside its sandbox. It waits for the user, or is
     // denied where nobody can be asked.
     internal static bool AlwaysAsks(AgentPermissionRequest request) => request is AgentSkillPermissionRequest or AgentBrowserPermissionRequest or AgentCredentialPermissionRequest
-        || IsOutsideSandbox(request);
+        or AgentSessionDeletionPermissionRequest || IsOutsideSandbox(request);
 
     // A host that trusts its sessions fully still has nobody to let a command out of a sandbox: the user chose the sandbox.
     private static bool IsOutsideSandbox(AgentPermissionRequest request) => request is AgentCommandPermissionRequest { OutsideSandbox: true };
 
     // Nor has it anybody to let a session into the user's own browser, with the user's sign-ins.
-    // Nor anybody to change where the secrets of the user are kept.
-    private static bool OnlyTheUserAllows(AgentPermissionRequest request) => IsOutsideSandbox(request) || request is AgentBrowserPermissionRequest or AgentCredentialPermissionRequest;
+    // Nor anybody to change where the secrets of the user are kept, nor to delete sessions.
+    private static bool OnlyTheUserAllows(AgentPermissionRequest request) => IsOutsideSandbox(request)
+        || request is AgentBrowserPermissionRequest or AgentCredentialPermissionRequest or AgentSessionDeletionPermissionRequest;
 
     /// <summary>
     /// Gets or sets whether every request the host answers by default is granted, the loads of skills that otherwise
@@ -538,7 +549,7 @@ public sealed partial class SessionPermissionService : IAsyncDisposable
                 if (policy == SessionPermissionPolicy.AcceptEdits && pending.Snapshot.Kind != FileChangeKind) continue;
                 // The load of a skill of an MCP server, and a command out of a sandbox, wait for the user whatever the mode.
                 if (pending.Snapshot.Kind is AgentSkillPermissionRequest.SkillKind or AgentBrowserPermissionRequest.BrowserKind or AgentCredentialPermissionRequest.CredentialKind
-                    || pending.Snapshot.OutsideSandbox) continue;
+                    or AgentSessionDeletionPermissionRequest.SessionDeletionKind || pending.Snapshot.OutsideSandbox) continue;
                 if (Complete(pending.Snapshot.Handle, AgentPermissionDecisionKind.AllowOnce)) allowed++;
             }
             return allowed;
@@ -706,6 +717,8 @@ public sealed partial class SessionPermissionService : IAsyncDisposable
                 && credential.Action is "bind" or "unbind" or "add_provider" or "remove_provider" or AgentCredentialPermissionRequest.SignInAction
                 && ValidOwnedText(credential.Subject, OwnedIdentityLimit, required: true, identity: true)
                 && ValidOwnedText(credential.Detail, OwnedReasonLimit, required: true),
+            AgentSessionDeletionPermissionRequest deletion => request.Kind == AgentSessionDeletionPermissionRequest.SessionDeletionKind
+                && deletion.Count > 0 && ValidOwnedText(deletion.Detail, OwnedCommandLimit, required: true),
             _ => false,
         };
 
@@ -742,6 +755,10 @@ public sealed partial class SessionPermissionService : IAsyncDisposable
             AgentCredentialPermissionRequest credential => new(handle, request.ProviderId, request.Timestamp, request.Kind, null, null, null, null)
             {
                 Credential = new(credential.Action, credential.Subject, credential.Detail),
+            },
+            AgentSessionDeletionPermissionRequest deletion => new(handle, request.ProviderId, request.Timestamp, request.Kind, null, null, null, null)
+            {
+                SessionDeletion = new(deletion.Count, deletion.Detail),
             },
             _ => throw new InvalidOperationException($"A permission request of kind '{request.Kind}' is not presented by the owned review."),
         };
@@ -791,6 +808,7 @@ public sealed partial class SessionPermissionService : IAsyncDisposable
             Skill = request is AgentSkillPermissionRequest skill ? new(skill.Server, skill.SkillName, skill.Uri, skill.FileCount, skill.TotalBytes, skill.Dynamic) : null,
             Browser = request is AgentBrowserPermissionRequest browser ? new(browser.Browser, browser.Profile, browser.Site) : null,
             Credential = request is AgentCredentialPermissionRequest credential ? new(credential.Action, credential.Subject, credential.Detail) : null,
+            SessionDeletion = request is AgentSessionDeletionPermissionRequest deletion ? new(deletion.Count, deletion.Detail) : null,
             OutsideSandbox = command?.OutsideSandbox == true,
         };
         var completion = new TaskCompletionSource<AgentPermissionDecision>(TaskCreationOptions.RunContinuationsAsynchronously);

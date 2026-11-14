@@ -28,6 +28,7 @@ namespace CodeAlta.Agent;
 [JsonDerivedType(typeof(AgentSkillPermissionRequest), "permissionSkill")]
 [JsonDerivedType(typeof(AgentBrowserPermissionRequest), "permissionBrowser")]
 [JsonDerivedType(typeof(AgentCredentialPermissionRequest), "permissionCredential")]
+[JsonDerivedType(typeof(AgentSessionDeletionPermissionRequest), "permissionSessionDeletion")]
 [JsonDerivedType(typeof(AgentUserInputRequest), "userInputRequest")]
 [JsonDerivedType(typeof(AgentBackgroundTasksEvent), "backgroundTasks")]
 [JsonDerivedType(typeof(AgentRemoteControlEvent), "remoteControl")]

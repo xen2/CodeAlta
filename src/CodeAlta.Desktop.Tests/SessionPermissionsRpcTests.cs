@@ -156,6 +156,35 @@ public sealed class SessionPermissionsRpcTests
     }
 
     [TestMethod]
+    public async Task ADeletionOfSessions_IsShownWithItsSessions_OnTheWindowAndThePhone()
+    {
+        var command = Entry();
+        const string Detail = "\"Old work\" — chat, updated 2026-11-01, 2 sessions below\n\"Spike\" — project \"Site\", updated 2026-10-02";
+        var entry = command with
+        {
+            Request = command.Request with { Kind = AgentSessionDeletionPermissionRequest.SessionDeletionKind, Command = null, WorkingDirectory = null }
+                with { SessionDeletion = new(4, Detail) },
+        };
+
+        var listed = (await Service(new([entry], false)).ListAsync(new(Epoch, "session"), default)).Entries.Single();
+
+        Assert.AreEqual("sessionDeletion", listed.Kind);
+        Assert.AreEqual(new SessionPermissionSessionDeletionEntry(4, Detail), listed.SessionDeletion);
+        Assert.IsNull((await Service(new([command], false)).ListAsync(new(Epoch, "session"), default)).Entries.Single().SessionDeletion);
+        var plugin = DesktopPluginPermissions.ToPlugin(entry);
+        Assert.AreEqual(("sessionDeletion", Detail, 4), (plugin.Kind, plugin.Detail, plugin.Count));
+        Assert.AreEqual((null, 0), (DesktopPluginPermissions.ToPlugin(command).Detail, DesktopPluginPermissions.ToPlugin(command).Count));
+        // A deletion is held to its own shape: no command, a count, and lines that fit.
+        foreach (var bad in new[] { entry with { Request = entry.Request with { Command = "x" } }, entry with { Request = entry.Request with { SessionDeletion = null } },
+            entry with { Request = entry.Request with { SessionDeletion = new(0, Detail) } },
+            entry with { Request = entry.Request with { SessionDeletion = new(4, new string('x', 4097)) } },
+            command with { Request = command.Request with { SessionDeletion = new(4, Detail) } } })
+        {
+            Assert.AreEqual("wire_limit", (await Service(new([bad], false)).ListAsync(new(Epoch, "session"), default)).Status);
+        }
+    }
+
+    [TestMethod]
     public async Task ARequestShownCut_SaysSoOnTheWire()
     {
         var entry = Entry();

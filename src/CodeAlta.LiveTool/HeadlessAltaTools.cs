@@ -155,6 +155,7 @@ public sealed class HeadlessAltaTools : IAsyncDisposable
             .Add(host.ModelProviderRegistry)
             .Add(host.ProjectFileSearchService)
             .Add<ISessionArchive>(host.Commands)
+            .Add<ISessionDeletion>(host.Commands)
             .Add(host.Commands)
             .Add<IAltaNotesService>(new RuntimeAltaNotesService(host.RuntimeService))
             .Add<IReadOnlyList<ModelProviderDescriptor>>(new RegisteredProviders(host.ModelProviderRegistry))

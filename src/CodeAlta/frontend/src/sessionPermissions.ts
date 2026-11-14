@@ -244,13 +244,19 @@ function shaped(entry: SessionPermissionCommand): boolean {
     return !!browser && identity(browser.browser) && identity(browser.profile) && (browser.site === null || identity(browser.site))
       && entry.command === null && entry.workingDirectory === null && entry.grantRoot === null && entry.skill == null && entry.credential == null;
   }
+  if (entry.kind === "sessionDeletion") {
+    const deletion = entry.sessionDeletion;
+    return !!deletion && Number.isSafeInteger(deletion.count) && deletion.count > 0 && text(deletion.detail, 4096, true)
+      && entry.command === null && entry.workingDirectory === null && entry.grantRoot === null
+      && entry.skill == null && entry.browser == null && entry.credential == null;
+  }
   if (entry.kind === "credential") {
     const credential = entry.credential;
     return !!credential && ["bind", "unbind", "add_provider", "remove_provider", "sign_in"].includes(credential.action) && identity(credential.subject)
       && text(credential.detail, 1024, true) && entry.command === null && entry.workingDirectory === null && entry.grantRoot === null
-      && entry.skill == null && entry.browser == null;
+      && entry.skill == null && entry.browser == null && entry.sessionDeletion == null;
   }
-  return entry.skill == null && entry.browser == null && entry.credential == null && (entry.kind === "commandExecution"
+  return entry.skill == null && entry.browser == null && entry.credential == null && entry.sessionDeletion == null && (entry.kind === "commandExecution"
     ? text(entry.command, 4096, true) && text(entry.workingDirectory, 1024, true) && entry.grantRoot === null
     : entry.kind === "fileChange"
     ? text(entry.grantRoot, 1024, true) && entry.command === null && entry.workingDirectory === null

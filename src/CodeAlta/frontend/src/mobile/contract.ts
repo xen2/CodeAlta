@@ -64,7 +64,7 @@ export type ApprovalMark = Readonly<{ id: string; count: number }>;
 /** What a session asks permission for, with what the desktop shows of it. */
 export type ApprovalRequest = Readonly<{
   id: string;
-  kind: "commandExecution" | "fileChange" | "skill";
+  kind: "commandExecution" | "fileChange" | "skill" | "sessionDeletion";
   command: string | null;
   workingDirectory: string | null;
   grantRoot: string | null;
@@ -74,6 +74,10 @@ export type ApprovalRequest = Readonly<{
   /** A sandboxed session asks to run the command outside its sandbox. */
   outsideSandbox: boolean;
   skill: Readonly<{ server: string | null; name: string }> | null;
+  /** The lines that say what a request of another kind asks: the sessions of a `sessionDeletion`, one per line. */
+  detail?: string | null;
+  /** How many sessions a `sessionDeletion` deletes, the sessions below included. */
+  count?: number;
 }>;
 
 /** The first permission requests of a session. */

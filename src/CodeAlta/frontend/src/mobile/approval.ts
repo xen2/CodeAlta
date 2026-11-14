@@ -12,6 +12,7 @@ export const approvalMarkKey = (mark: ApprovalMark | null | undefined): string =
 export function approvalQuestion(request: ApprovalRequest): string {
   return request.kind === "commandExecution" ? "Allow this command?"
     : request.kind === "skill" ? "Load this skill?"
+    : request.kind === "sessionDeletion" ? (request.count === 1 ? "Delete this archived session?" : `Delete ${request.count ?? "these"} archived sessions?`)
     : "Allow file changes under this folder?";
 }
 
@@ -19,12 +20,13 @@ export function approvalQuestion(request: ApprovalRequest): string {
 export function approvalSubject(request: ApprovalRequest): string {
   if (request.kind === "commandExecution") return request.command ?? "";
   if (request.kind === "skill") return request.skill ? `${request.skill.name} (${request.skill.server})` : "";
+  if (request.kind === "sessionDeletion") return request.detail ?? "";
   return request.grantRoot ?? "";
 }
 
 /** What tells a card to draw itself again, so that what the user reads does not move while nothing changed. */
 export const approvalKey = (request: ApprovalRequest, hasMore: boolean, sending: boolean, armed: boolean, note: string, takeOver = ""): string =>
-  JSON.stringify([request.id, request.kind, approvalSubject(request), request.workingDirectory, request.reason, request.shortened, request.outsideSandbox, hasMore, sending, armed, note, takeOver]);
+  JSON.stringify([request.id, request.kind, request.count, approvalSubject(request), request.workingDirectory, request.reason, request.shortened, request.outsideSandbox, hasMore, sending, armed, note, takeOver]);
 
 /** What a card says of the run of an automation that waits for the person, who can take it over; null when none waits. */
 export function approvalTakeOver(automation: ApprovalAutomation | null | undefined): string | null {

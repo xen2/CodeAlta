@@ -2190,6 +2190,12 @@
   fr: "Supprimer session"
   ja: "セッションを削除"
   zh: "删除会话"
+"Delete Sessions":
+  de: "Sitzungen löschen"
+  es: "Eliminar sesiones"
+  fr: "Supprimer des sessions"
+  ja: "セッションを削除"
+  zh: "删除会话"
 "Delete System Prompt":
   de: "System-Prompt löschen"
   es: "Eliminar prompt del sistema"
@@ -2202,6 +2208,12 @@
   fr: "Supprimer prompt système ?"
   ja: "システムプロンプトを削除しますか？"
   zh: "删除系统提示词？"
+"Delete archived sessions, with the sessions below them: they cannot be restored.":
+  de: "Archivierte Sitzungen samt den Sitzungen darunter löschen: Sie können nicht wiederhergestellt werden."
+  es: "Eliminar sesiones archivadas, con las sesiones que dependen de ellas: no se pueden restaurar."
+  fr: "Supprimer des sessions archivées, avec les sessions sous elles : elles ne pourront pas être restaurées."
+  ja: "アーカイブ済みのセッションを、その下のセッションとともに削除します。元に戻すことはできません。"
+  zh: "删除已归档的会话及其下的会话：删除后无法恢复。"
 "Delete pending steering prompt":
   de: "Ausstehenden Steuerungs-Prompt löschen"
   es: "Eliminar prompt de dirección pendiente"

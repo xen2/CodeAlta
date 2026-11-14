@@ -12,7 +12,7 @@ function command(): SessionPermissionCommand {
   return { handle: { operationId: epoch, runtimeInstanceId: runtime, attachmentGeneration: "9223372036854775807",
     sessionId: "selected", runId: null, interactionId: "interaction", attemptId: epoch },
     providerId: "fake", kind: "commandExecution", command: "inert command\ncomplete", workingDirectory: "Q:\\fixture",
-    grantRoot: null, reason: null, shortened: false, outsideSandbox: false, skill: null, browser: null, credential: null };
+    grantRoot: null, reason: null, shortened: false, outsideSandbox: false, skill: null, browser: null, credential: null, sessionDeletion: null };
 }
 function fileChange(): SessionPermissionCommand {
   return { ...command(), kind: "fileChange", command: null, workingDirectory: null, grantRoot: "Q:\\fixture" };
@@ -652,3 +652,20 @@ test("a sign-in to a website is allowed once or for its site, and its card names
   assert.deepEqual(signInOf("https://github.com", "With GitHub (work) of 1Password (personal)"), { site: "github.com", label: "GitHub (work)" });
   assert.deepEqual(signInOf("http://127.0.0.1:8080", "With Local of Vault of mine"), { site: "127.0.0.1:8080", label: "Local of Vault" });
 });
+
+test("a deletion of sessions carries its sessions alone, and is allowed once only", () => Fixture.run(async f => {
+  const deletion: SessionPermissionCommand = { ...command(), kind: "sessionDeletion", command: null, workingDirectory: null,
+    sessionDeletion: { count: 2, detail: "\"Old work\" — chat, updated 2026-11-01, 1 session below" } };
+  assert.equal(offersAllowAlways(deletion), false);
+  const states: PermissionReviewState[] = [];
+  await f.wait(f.reviewer(async () => page([deletion])).forSelection(request, f.controller().signal, value => states.push(value)).refresh());
+  assert.deepEqual(ready(states).entries[0]!.sessionDeletion, deletion.sessionDeletion);
+  // A deletion is held to its own shape, and no other kind carries sessions to delete.
+  for (const bad of [{ ...deletion, sessionDeletion: null }, { ...deletion, sessionDeletion: { count: 0, detail: "x" } },
+    { ...deletion, sessionDeletion: { count: 2, detail: "x".repeat(4097) } }, { ...deletion, command: "rm" },
+    { ...command(), sessionDeletion: deletion.sessionDeletion }]) {
+    const refused: PermissionReviewState[] = [];
+    await f.wait(f.reviewer(async () => page([bad])).forSelection(request, f.controller().signal, value => refused.push(value)).refresh());
+    assert.deepEqual(refused.at(-1), { kind: "error", code: "invalid_response", reloadRequired: false });
+  }
+}));

@@ -40,6 +40,33 @@ public sealed partial class SessionRuntimeService
             return atWork;
         }, CancellationToken.None);
 
+    // A session and the sessions below it as the tree deletion finds them, with what is shown of each before it is
+    // deleted; nothing is claimed.
+    internal Task<SessionTreeForDeletion?> ReadSessionTreeForDeletionAsync(string sessionId, CancellationToken cancellationToken)
+        => AdmitAsync<SessionTreeForDeletion?>(async () =>
+        {
+            var all = await ListSessionRowsAsync(_sessionViewCatalog.JournalStore.CreateSessionStore()).ConfigureAwait(false);
+            var root = all.FirstOrDefault(metadata => metadata.SessionId == sessionId);
+            if (root?.WorkspacePath is not { Length: > 0 } workspacePath) return null;
+            var projects = await _projectCatalog.LoadAsync(cancellationToken).ConfigureAwait(false);
+            if (TryCreateRecoverableSession(root, projects) is not { } session) return null;
+
+            async Task<SessionTreeMember> MemberAsync(AgentSessionMetadata metadata, string? parent)
+            {
+                var recovered = TryCreateRecoverableSession(metadata, projects);
+                var title = recovered is null ? ListedTitle(metadata, null, null) : ListedTitle(metadata, recovered.Kind, ProjectOf(recovered, projects));
+                var archived = metadata.ViewState is { } state
+                    ? state.Archived
+                    : (await _sessionViewCatalog.JournalStore.ReadLatestStateAsync(metadata.SessionId, metadata.CreatedAt, cancellationToken).ConfigureAwait(false))?.Archived == true;
+                return new(metadata.SessionId, parent, title, archived, metadata.UpdatedAt);
+            }
+
+            var members = new List<SessionTreeMember> { await MemberAsync(root, null).ConfigureAwait(false) };
+            foreach (var descendant in SessionLineage.Descendants(root.SessionId, all))
+                members.Add(await MemberAsync(descendant.Session, descendant.ParentSessionId).ConfigureAwait(false));
+            return new SessionTreeForDeletion(root.SessionId, session.ProjectRef, workspacePath, members);
+        }, cancellationToken);
+
     private async Task<OwnedSessionTreeDeletion> DeleteOwnedCatalogSessionTreeBodyAsync(string sessionId, string? projectId, string workspacePath,
         string confirmedTitle, IReadOnlyCollection<string> expectedDescendants, Func<string, bool> isBusy)
     {

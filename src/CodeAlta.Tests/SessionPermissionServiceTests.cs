@@ -56,6 +56,25 @@ public sealed class SessionPermissionServiceTests
     }
 
     [TestMethod]
+    public async Task SessionDeletionRequest_WaitsUnderAutoApprove_IsAllowedOnceOnly_AndATrustedHostDeniesIt()
+    {
+        await using var service = new SessionPermissionService();
+        var request = new AgentSessionDeletionPermissionRequest(new ModelProviderId("alta"), "session", DateTimeOffset.UnixEpoch, null, "delete", 3,
+            "\"Old work\" — chat, updated 2026-11-01, 2 sessions below");
+        var registration = await service.RegisterAsync("session", request, true, CancellationToken.None);
+        Assert.IsTrue(registration.IsPending, "No permission mode deletes sessions for the user.");
+        Assert.AreEqual(new SessionPermissionSessionDeletion(3, request.Detail), registration.Snapshot.SessionDeletion);
+        Assert.IsFalse(await service.ResolveAsync(registration.Snapshot.Handle, AgentPermissionDecisionKind.AllowAlways), "A deletion is allowed once only.");
+        Assert.IsTrue(await service.ResolveAsync(registration.Snapshot.Handle, AgentPermissionDecisionKind.AllowOnce));
+        Assert.AreEqual(AgentPermissionDecisionKind.AllowOnce, (await registration.Completion).Kind);
+
+        await using var trusted = new SessionPermissionService { FullTrust = true };
+        var unattended = await trusted.RequestForSessionAsync("session", request with { InteractionId = "headless" }, CancellationToken.None);
+        Assert.AreEqual((AgentPermissionDecisionKind.Deny, AgentPermissionDecisionSource.Unattended), (unattended.Kind, unattended.Source));
+        StringAssert.Contains(unattended.DescribeDenial(), "delete sessions");
+    }
+
+    [TestMethod]
     public async Task BrowserRequest_IsDeniedByAHostThatTrustsItsSessions_ForNobodyIsThereToAgree()
     {
         await using var service = new SessionPermissionService { FullTrust = true };

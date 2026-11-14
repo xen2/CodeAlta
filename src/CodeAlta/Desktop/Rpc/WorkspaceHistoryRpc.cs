@@ -227,6 +227,10 @@ internal sealed partial class WorkspaceService
                     type = "permissionCredential"; kind = permission.Kind; interactionId = permission.InteractionId;
                     name = "Credential permission"; text = $"**{permission.Action}:** `{permission.Subject}`\n\n{permission.Detail}";
                     break;
+                case AgentSessionDeletionPermissionRequest permission:
+                    type = "permissionSessionDeletion"; kind = permission.Kind; interactionId = permission.InteractionId;
+                    name = "Delete sessions"; text = $"**Sessions:** {permission.Count}\n\n```text\n{permission.Detail}\n```";
+                    break;
                 case AgentUserInputRequest input:
                     type = "userInputRequest"; kind = "UserInput"; interactionId = input.InteractionId;
                     name = "User input requested"; text = FormatUserInput(input);

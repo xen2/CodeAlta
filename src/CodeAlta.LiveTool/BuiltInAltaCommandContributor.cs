@@ -97,6 +97,7 @@ internal sealed partial class BuiltInAltaCommandContributor : IAltaCommandContri
         Disruptive("session rewind"),
         Mutating("session archive"),
         Mutating("session restore"),
+        Disruptive("session delete"),
         Read("session join"),
         Mutating("session message"),
         Mutating("session request"),
@@ -872,6 +873,7 @@ internal sealed partial class BuiltInAltaCommandContributor : IAltaCommandContri
         group.Add(CreateSessionRewindCommand(context));
         group.Add(CreateSessionArchiveCommand(context, archive: true));
         group.Add(CreateSessionArchiveCommand(context, archive: false));
+        group.Add(CreateSessionDeleteCommand(context));
         group.Add(CreateSessionJoinCommand(context));
         group.Add(CreateSessionMessageCommand(context));
         group.Add(CreateSessionRequestCommand(context));
@@ -882,7 +884,8 @@ internal sealed partial class BuiltInAltaCommandContributor : IAltaCommandContri
                 group,
                 "Common: list by project, send prompts, inspect result/metrics snapshots, and steer active runs.",
                 "A session is a list of turns (`session turns`): `session rewind` removes one and the turns after it.",
-                "`session archive` takes a session out of the lists, `session restore` brings it back.",
+                "`session archive` takes a session out of the lists, `session restore` brings it back,",
+                "`session delete` deletes archived sessions once the user agrees.",
                 "Examples:",
                 "  `alta session current`",
                 "  `alta session list --project CodeAlta --state all --limit 20`",
@@ -897,7 +900,8 @@ internal sealed partial class BuiltInAltaCommandContributor : IAltaCommandContri
             "Common: list by project, create child sessions, send prompts, inspect result/metrics snapshots, and steer active runs.",
             "A session is a list of turns (`session turns`): `session fork` starts a new",
             "session at one of them, `session rewind` removes one and the turns after it.",
-            "`session archive` takes a session out of the lists, `session restore` brings it back.",
+            "`session archive` takes a session out of the lists, `session restore` brings it back,",
+            "`session delete` deletes archived sessions once the user agrees.",
             "Examples:",
             "  `alta session current`",
             "  `alta session list --project CodeAlta --state all --limit 20`",

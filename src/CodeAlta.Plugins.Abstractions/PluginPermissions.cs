@@ -60,7 +60,10 @@ public sealed record PluginPermissionRequest
     /// <summary>Gets the id of the request.</summary>
     public required string RequestId { get; init; }
 
-    /// <summary>Gets what is asked: <c>commandExecution</c>, <c>fileChange</c> or <c>skill</c>.</summary>
+    /// <summary>
+    /// Gets what is asked: <c>commandExecution</c>, <c>fileChange</c>, <c>skill</c> or <c>sessionDeletion</c> (the archived
+    /// sessions an agent asks to delete); other kinds can come.
+    /// </summary>
     public required string Kind { get; init; }
 
     /// <summary>Gets the command of a <c>commandExecution</c>; <see langword="null"/> otherwise.</summary>
@@ -86,6 +89,15 @@ public sealed record PluginPermissionRequest
 
     /// <summary>Gets the name of the skill of a <c>skill</c>; <see langword="null"/> otherwise.</summary>
     public string? SkillName { get; init; }
+
+    /// <summary>
+    /// Gets the lines that say what a request of another kind asks, as the window shows them: the sessions of a
+    /// <c>sessionDeletion</c>, one per line; <see langword="null"/> otherwise.
+    /// </summary>
+    public string? Detail { get; init; }
+
+    /// <summary>Gets how many sessions a <c>sessionDeletion</c> deletes, the sessions below them included; 0 otherwise.</summary>
+    public int Count { get; init; }
 }
 
 /// <summary>What became of an answer to a permission request.</summary>

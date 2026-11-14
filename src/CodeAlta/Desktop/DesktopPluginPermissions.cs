@@ -119,6 +119,7 @@ internal sealed class DesktopPluginPermissions : IPluginPermissionRuntimeService
         {
             RequestId = RequestIdOf(entry), Kind = request.Kind, Command = request.Command, WorkingDirectory = request.WorkingDirectory, GrantRoot = request.GrantRoot,
             Reason = request.Reason, Shortened = request.Shortened, OutsideSandbox = request.OutsideSandbox, SkillServer = request.Skill?.Server, SkillName = request.Skill?.Name,
+            Detail = request.SessionDeletion?.Detail, Count = request.SessionDeletion?.Count ?? 0,
         };
     }
 

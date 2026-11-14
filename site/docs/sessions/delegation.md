@@ -56,7 +56,7 @@ A child session can be in another project, in the chats, or in another space tha
 - **Child sessions…** in the menu of a session lists every session below it, wherever it is: the tree, the number of direct and of all children, the project or chat and the space of each, and the ones at work. Click one to open it.
 - **Open parent session** in the menu of a child session opens the session that started it.
 - **Delete** deletes one session only, and never one with child sessions: it shows the child sessions instead.
-- **Delete with all child sessions…**, in that list, deletes the session and every session below it, after a confirmation. Nothing is deleted while one of them is at work. Projects and their files are kept.
+- **Delete with all child sessions…**, in that list, deletes the session and every session below it, after a confirmation. Nothing is deleted while one of them is at work. Projects and their files are kept. An agent deletes archived sessions the same way, after you agree on a card (see [Archive a session](readme.md#archive-a-session)).
 - The confirmation names the [worktrees](../worktrees.md) these sessions work in, each once. They are kept, unless you tick **Also remove the worktree** (**Also remove the N worktrees** for several); a worktree that another session works in stays.
 
 <figure class="alta-figure my-4">
@@ -237,7 +237,7 @@ The `alta` commands depend on the host, the plugins turned on and the session. A
 | `version`, `tool` | Read the version and the capabilities of the tool. | “Check which live-tool capabilities this session has.” | Read-only. |
 | `project` | List, show, resolve or add projects. | “Resolve the current project and summarize its catalog entry.” | `upsert` changes the project list. |
 | `space` | List, create, change, delete and order [spaces](../spaces.md), put projects in them, show one. | “Create a space called Client work with these three projects and show it.” | `switch` changes the space the window shows. |
-| `session` | Inspect, create, send to, queue, steer, stop, compact and report on sessions; list turns, fork, rewind; archive and restore. | “Create a same-model child session to inspect the failing tests, then report its final answer here.” | Can stop runs and remove turns: ask for confirmation of disruptive actions. |
+| `session` | Inspect, create, send to, queue, steer, stop, compact and report on sessions; list turns, fork, rewind; archive, restore and delete. | “Create a same-model child session to inspect the failing tests, then report its final answer here.” | Can stop runs and remove turns: ask for confirmation of disruptive actions. |
 | `bookmark` | List, show, add, name and remove [bookmarks](../bookmarks.md). | “Summarize the decisions my bookmarks of this project hold.” | Adds a bookmark only when you ask. |
 | `prompt` | List, read, create, edit and select [agent prompts](../prompts.md). | “Create a project prompt named reviewer for read-only code reviews.” | Writes prompt files. |
 | `ask` | Ask you structured questions. | “Ask me which storage format I prefer, with the options you see.” | The agent stops and waits for your answers. |

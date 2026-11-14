@@ -788,6 +788,17 @@ internal static class ChatMarkdownFormatter
                 AppendBullet(builder, SR.T("Reason"), fileChange.Reason);
                 break;
 
+            case AgentSessionDeletionPermissionRequest deletion:
+                builder.AppendLine()
+                    .AppendLine()
+                    .Append("**")
+                    .Append(SR.T("Delete archived sessions, with the sessions below them: they cannot be restored."))
+                    .Append("**")
+                    .AppendLine()
+                    .AppendLine()
+                    .Append(FormatCodeFence(deletion.Detail, "text"));
+                break;
+
             case AgentGenericPermissionRequest generic:
                 builder.AppendLine().AppendLine().Append("- ").Append(SR.T("Kind")).Append(": ").Append(generic.Kind);
                 if (TryGetStringProperty(generic.Raw, "toolName", out var toolName))

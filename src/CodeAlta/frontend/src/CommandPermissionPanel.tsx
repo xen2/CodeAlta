@@ -170,8 +170,10 @@ export function CommandPermissionPanel({ reviewer, epoch, sessionId, canReview, 
   // A command outside the sandbox is allowed once at most: the next one is asked again. The user's browser is allowed
   // for the session, and a site of it for the session or from now on. A sign-in to a website is allowed once or for that
   // site for 30 days.
-  const decisions: readonly (readonly [CommandDecision, "Allow this skill" | "Always allow this site" | "Allow for this site for 30 days" | "Allow for this session" | "Allow once" | "Deny"])[] =
-    entry.kind === "credential" && entry.credential?.action === "sign_in"
+  const decisions: readonly (readonly [CommandDecision, "Allow this skill" | "Always allow this site" | "Allow for this site for 30 days" | "Allow for this session" | "Allow once" | "Delete" | "Deny"])[] =
+    entry.kind === "sessionDeletion"
+      ? [["allow_once", "Delete"], ["deny", "Deny"]]
+      : entry.kind === "credential" && entry.credential?.action === "sign_in"
       ? [["allow_always", "Allow for this site for 30 days"], ["allow_once", "Allow once"], ["deny", "Deny"]]
       : entry.kind === "browser"
       ? offersAllowAlways(entry)
@@ -211,6 +213,8 @@ export function CommandPermissionPanel({ reviewer, epoch, sessionId, canReview, 
       ? entry.browser.site
         ? t("Open {site} in your browser {browser}?", { site: entry.browser.site, browser: entry.browser.browser })
         : t("Let the agent use your browser {browser}?", { browser: entry.browser.browser })
+      : entry.kind === "sessionDeletion" && entry.sessionDeletion
+      ? entry.sessionDeletion.count === 1 ? t("Delete this archived session?") : t("Delete {count} archived sessions?", { count: entry.sessionDeletion.count })
       : entry.kind === "credential" && entry.credential?.action === "sign_in"
       ? t("Sign in to {site} with {label}?", signInOf(entry.credential.subject, entry.credential.detail))
       : entry.kind === "credential" && entry.credential
@@ -243,6 +247,11 @@ export function CommandPermissionPanel({ reviewer, epoch, sessionId, canReview, 
         <p className="detail">{entry.browser.site
           ? t("The agent reads and acts on the pages of this site and its subdomains with your sign-ins.")
           : t("The agent works in tabs of its own, with your sign-ins and cookies. Each new site is asked first.")}</p>
+      </>
+      : entry.kind === "sessionDeletion" && entry.sessionDeletion
+      ? <>
+        <pre data-permission-session-deletion>{entry.sessionDeletion.detail}</pre>
+        <p className="detail">{t("An agent asks to delete these sessions and the sessions below them, with their history. They cannot be restored.")}</p>
       </>
       : entry.kind === "credential" && entry.credential
       ? <>

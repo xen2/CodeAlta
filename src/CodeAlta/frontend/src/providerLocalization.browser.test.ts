@@ -266,6 +266,16 @@ test("provider presentation preserves literal decisions and input owners across 
     await evaluate("providerFixture.decisions[0].resolve({status:'resolved',hostEpoch:providerFixture.epoch,handle:providerFixture.handle})");
     assert.equal(await wait("providerFixture.instructions.length===1"), true);
     assert.deepEqual(await evaluate("providerFixture.instructions[0]"), ["Steer", "Use a dry run"]);
+    // A request to delete archived sessions: their number, one line per session as it came, and Delete or Deny.
+    await command("Page.navigate", { url: pathToFileURL(page).href }); assert.equal(await wait("!!window.providerFixture && providerFixture.permissions.length===1"), true);
+    await evaluate("providerFixture.permissions[0].resolve(providerFixture.deletionPage)");
+    assert.equal(await armed(), true);
+    assert.deepEqual(await evaluate(`(()=>{const d=document.querySelector('.command-permission-panel');return [d.querySelector('h3').textContent,d.querySelector('[data-permission-session-deletion]').textContent,
+      !!d.querySelector('b'),[...d.querySelectorAll('[data-permission-decision]')].map(b=>b.textContent)]})()`),
+      ["Delete 3 archived sessions?", "\"Old <b>work</b>\" — chat, updated 2026-11-01, 1 session below\n\"Spike\" — project \"Site\", updated 2026-10-02", false, ["1Delete", "2Deny"]]);
+    await evaluate("document.querySelector('[data-permission-decision=allow_once]').click()");
+    assert.equal(await wait("providerFixture.decisions.length===1"), true);
+    assert.equal(await evaluate("providerFixture.decisions[0].request.decision"), "allow_once", "Delete allows it once");
     // A request to load a skill of an MCP server: its name, server, files and address, three answers, and its SKILL.md
     // read on demand for the entry shown, hidden again, and a read that fails said in place.
     await command("Page.navigate", { url: pathToFileURL(page).href }); assert.equal(await wait("!!window.providerFixture && providerFixture.permissions.length===1"), true);

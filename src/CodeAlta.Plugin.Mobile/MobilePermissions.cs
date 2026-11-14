@@ -90,6 +90,7 @@ internal sealed class MobilePermissions(IPluginPermissionService permissions, Mo
         ["id"] = request.RequestId, ["kind"] = request.Kind, ["command"] = request.Command, ["workingDirectory"] = request.WorkingDirectory,
         ["grantRoot"] = request.GrantRoot, ["reason"] = request.Reason, ["shortened"] = request.Shortened, ["outsideSandbox"] = request.OutsideSandbox,
         ["skill"] = request.SkillName is { } name ? new JsonObject { ["server"] = request.SkillServer, ["name"] = name } : null,
+        ["detail"] = request.Detail, ["count"] = request.Count,
     };
 
     /// <summary>The requests of a session as the live stream says them: what tells the phone to read them again.</summary>

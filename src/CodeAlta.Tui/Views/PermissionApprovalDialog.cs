@@ -80,6 +80,7 @@ internal sealed class PermissionApprovalDialog : IDisposable
         {
             AgentCommandPermissionRequest => SR.T("Shell Command"),
             AgentFileChangePermissionRequest => SR.T("File Change"),
+            AgentSessionDeletionPermissionRequest => SR.T("Delete Sessions"),
             _ => SR.T("Permission Request"),
         };
 

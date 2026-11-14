@@ -188,6 +188,8 @@ Archive a session you are done with for now but may come back to. In CodeAlta De
 
 Agents use `alta session archive <id>` and `alta session restore <id>` (with `--with-children` for the sessions below), for sessions of their own space only. `alta session list` shows archived sessions only with `--archived`. CodeAlta TUI does not list archived sessions.
 
+When you ask an agent to delete sessions, it runs `alta session delete <id>...`: archived sessions only, each with every session below it, which must be archived and idle too. A card of the agent's session lists them, with their project or chat, last update, sessions below and bookmarks; nothing is deleted until you choose **Delete** there, in any permission mode, on the computer or on the [phone](../plugins/mobile.md). A session that changed since the card is not deleted.
+
 ## Move a session
 
 In CodeAlta Desktop, a project session can move to another project, for example from one [worktree](../worktrees.md) of a repository, added as a project, to another one. To keep it in its project and only change the worktree it works in, see [Move a session to another worktree](../worktrees.md#move-a-session-to-another-worktree). To move it to another space, see [Move a session to another space](../spaces.md#move-a-session).

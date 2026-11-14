@@ -35,10 +35,14 @@ const inputPage = { status: "ok", hostEpoch: epoch, sessionId: "Settings", hasMo
 ] }] };
 const permissionPage = { status: "ok", hostEpoch: epoch, sessionId: "Settings", hasMore: false, entries: [{ handle, providerId: "Settings",
   kind: "commandExecution", grantRoot: null,
-  command: "  echo 'Allow once'\n# 日本語 <script>literal</script>  " + "x".repeat(3000), workingDirectory: "Q:\\fixture\\Settings", reason: "Deny", shortened: false, outsideSandbox: false, skill: null, browser: null, credential: null }] };
+  command: "  echo 'Allow once'\n# 日本語 <script>literal</script>  " + "x".repeat(3000), workingDirectory: "Q:\\fixture\\Settings", reason: "Deny", shortened: false, outsideSandbox: false, skill: null, browser: null, credential: null, sessionDeletion: null }] };
 // A request to load a skill of an MCP server whose files can be checked: it can be allowed from now on.
 const skillPage = { ...permissionPage, entries: [{ handle, providerId: "Settings", kind: "skill", command: null, workingDirectory: null, grantRoot: null, reason: null, shortened: false, outsideSandbox: false,
-  skill: { server: "billing", name: "refunds", uri: "skill://acme/billing/refunds/SKILL.md", fileCount: 2, totalBytes: 2048, dynamic: false }, browser: null, credential: null }] };
+  skill: { server: "billing", name: "refunds", uri: "skill://acme/billing/refunds/SKILL.md", fileCount: 2, totalBytes: 2048, dynamic: false }, browser: null, credential: null, sessionDeletion: null }] };
+// A request of an agent to delete archived sessions: allowed once, or denied.
+const deletionPage = { ...permissionPage, entries: [{ handle, providerId: "Settings", kind: "sessionDeletion", command: null, workingDirectory: null, grantRoot: null, reason: null, shortened: false,
+  outsideSandbox: false, skill: null, browser: null, credential: null,
+  sessionDeletion: { count: 3, detail: "\"Old <b>work</b>\" — chat, updated 2026-11-01, 1 session below\n\"Spike\" — project \"Site\", updated 2026-10-02" } }] };
 function Fixture() {
   const [locale, language] = useState<Locale>("en");
   const [sessionId, select] = useState("Settings");
@@ -47,7 +51,7 @@ function Fixture() {
   const [observing, observe] = useState(true);
   useLayoutEffect(() => { Object.assign(window, { providerFixture: { language, select, run, focus, observe, epoch, handle, inputPage, permissionPage, skillPage, skillReads: skillReads.calls,
     permissions: permissions.calls, decisions: decisions.calls, inputs: inputs.calls, answers: answers.calls, cancels: cancels.calls,
-    checks: checks.calls, instructions, permission, input, capability } }); }, []);
+    checks: checks.calls, instructions, permission, input, capability, deletionPage } }); }, []);
   return <ShellLanguageContext value={{ locale, choice: locale, setLanguage: () => {} }}>
     <main className="configuration-page">
       <PaneObservingContext value={observing}><CommandPermissionPanel reviewer={permission} epoch={epoch} sessionId={sessionId} canReview={() => capability.canMutate()} running={running}

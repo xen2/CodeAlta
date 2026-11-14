@@ -192,9 +192,13 @@ internal sealed partial class BuiltInAltaCommandContributor
             || context.Services.Get<SessionRuntimeService>() is not { } runtime)
             return PermissionDenied(context, "session.deleteNoUser", "Only an agent of a session deletes sessions with this command, after the user agrees on its card. Delete them in the CodeAlta window.");
         var request = new AgentSessionDeletionPermissionRequest(new ModelProviderId("alta"), sessionId, DateTimeOffset.UtcNow, null, Guid.NewGuid().ToString("N"), count, detail);
-        var decision = await runtime.Permissions.RequestForSessionAsync(sessionId, request, context.CancellationToken).ConfigureAwait(false);
-        return decision.Kind is AgentPermissionDecisionKind.AllowOnce
-            ? null
+        AgentPermissionDecision decision;
+        using (context.PauseTimeLimit())
+            decision = await runtime.Permissions.RequestForSessionAsync(sessionId, request, context.CancellationToken).ConfigureAwait(false);
+        // A card taken back before the user answered (the run stopped) is not a refusal of the user.
+        return decision.Kind is AgentPermissionDecisionKind.AllowOnce ? null
+            : decision.Kind is AgentPermissionDecisionKind.Cancel
+            ? PermissionDenied(context, "session.deleteNotAnswered", "The card was taken back before the user answered it, as the call stopped. Nothing was deleted.")
             : PermissionDenied(context, "session.deleteDenied", decision.DescribeDenial() + " Nothing was deleted.");
     }
 

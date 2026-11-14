@@ -300,7 +300,9 @@ internal sealed partial class BuiltInAltaCommandContributor
             || context.Services.Get<Orchestration.Runtime.SessionRuntimeService>() is not { } runtime)
             return PermissionDenied(context, "credential.noUser", "Only the user changes where the secrets are kept: in Settings > Secrets of CodeAlta Desktop.");
         var request = new AgentCredentialPermissionRequest(new ModelProviderId("alta"), sessionId, DateTimeOffset.UtcNow, null, Guid.NewGuid().ToString("N"), action, subject, detail);
-        var decision = await runtime.Permissions.RequestForSessionAsync(sessionId, request, context.CancellationToken).ConfigureAwait(false);
+        AgentPermissionDecision decision;
+        using (context.PauseTimeLimit())
+            decision = await runtime.Permissions.RequestForSessionAsync(sessionId, request, context.CancellationToken).ConfigureAwait(false);
         return decision.Kind is AgentPermissionDecisionKind.AllowOnce or AgentPermissionDecisionKind.AllowForSession or AgentPermissionDecisionKind.AllowAlways
             ? null
             : PermissionDenied(context, "credential.denied", decision.DescribeDenial());

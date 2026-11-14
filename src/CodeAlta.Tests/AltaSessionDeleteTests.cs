@@ -83,6 +83,64 @@ public sealed partial class AltaLiveToolTests
     }
 
     [TestMethod]
+    public async Task SessionDelete_ThroughTheTool_WaitsForTheCardPastTheTimeLimit_AndACardTakenBackIsNotADenial()
+    {
+        await using var fixture = await SpaceResourceFixture.CreateAsync(withOwner: true).ConfigureAwait(false);
+        var caller = await fixture.CreateAsync(AltaCallerIdentity.Cli, "--global", "--space", "personal").ConfigureAwait(false);
+        var first = await fixture.CreateAsync(Agent(caller), "--global").ConfigureAwait(false);
+        var second = await fixture.CreateAsync(Agent(caller), "--global").ConfigureAwait(false);
+        await ArchiveAsync(fixture, Id(first)).ConfigureAwait(false);
+        await ArchiveAsync(fixture, Id(second)).ConfigureAwait(false);
+        // The limit of the call is for the work of the command: the user answers the card when they see it.
+        var tool = AltaSessionToolFactory.Create(fixture.Dispatcher, new AltaSessionToolOptions { SourceSessionId = Id(caller), DefaultTimeout = TimeSpan.FromMilliseconds(300) });
+        static JsonElement Delete(string id) => JsonDocument.Parse(JsonSerializer.Serialize(new { args = new[] { "session", "delete", id } })).RootElement;
+
+        var allowed = tool.Handler(CreateInvocation(Delete(Id(first))), CancellationToken.None);
+        var card = await WaitForCardAsync(fixture, Id(caller), allowed).ConfigureAwait(false);
+        await Task.Delay(TimeSpan.FromMilliseconds(1000)).ConfigureAwait(false);
+        Assert.IsFalse(allowed.IsCompleted, "the card still waits past the time limit");
+        Assert.IsTrue(await fixture.Runtime.Permissions.ResolveOwnedCommandAsync(card.Handle, AgentPermissionDecisionKind.AllowOnce, CancellationToken.None));
+        var result = await allowed.ConfigureAwait(false);
+        Assert.IsTrue(result.Success, result.Error);
+        Assert.IsNull(await fixture.Runtime.ResolveOwnedSessionAsync(Id(first), CancellationToken.None).ConfigureAwait(false));
+
+        // The run stops while the card waits: the card goes, and the agent is not told that the user refused.
+        using var run = new CancellationTokenSource();
+        var stopped = tool.Handler(CreateInvocation(Delete(Id(second))), run.Token);
+        await WaitForCardAsync(fixture, Id(caller), stopped).ConfigureAwait(false);
+        await run.CancelAsync().ConfigureAwait(false);
+        var taken = await stopped.ConfigureAwait(false);
+        Assert.IsFalse(taken.Success);
+        StringAssert.Contains(AssertTextItem(taken), "session.deleteNotAnswered");
+        Assert.IsNotNull(await fixture.Runtime.ResolveOwnedSessionAsync(Id(second), CancellationToken.None).ConfigureAwait(false));
+    }
+
+    [TestMethod]
+    public async Task ATimeLimit_DoesNotRunWhilePaused_AndRunsOnWithTheTimeLeft()
+    {
+        using var run = new CancellationTokenSource();
+        using var limit = new AltaTimeLimit(TimeSpan.FromMilliseconds(300), run.Token);
+        var pause = limit.Pause();
+        using (limit.Pause())
+        {
+        }
+
+        await Task.Delay(TimeSpan.FromMilliseconds(800)).ConfigureAwait(false);
+        Assert.IsFalse(limit.Token.IsCancellationRequested, "a pause nested in another one does not resume the time");
+        pause.Dispose();
+        pause.Dispose();
+        Assert.IsTrue(limit.Token.WaitHandle.WaitOne(TestTime.Seconds(10)), "the time runs again after the last pause");
+
+        using var stopped = new CancellationTokenSource();
+        using var paused = new AltaTimeLimit(TimeSpan.FromMinutes(5), stopped.Token);
+        using (paused.Pause())
+        {
+            await stopped.CancelAsync().ConfigureAwait(false);
+            Assert.IsTrue(paused.Token.IsCancellationRequested, "a pause does not hold back the call that stops");
+        }
+    }
+
+    [TestMethod]
     public async Task SessionDelete_ReachesOnlySessionsOfTheOwnSpace_AndTheOwnDescendants()
     {
         await using var fixture = await SpaceResourceFixture.CreateAsync(withOwner: true).ConfigureAwait(false);
@@ -134,15 +192,19 @@ public sealed partial class AltaLiveToolTests
     }
 
     // The card the command waits on, on the session of the agent.
-    private static async Task<SessionOwnedPermissionSnapshot> WaitForCardAsync(SpaceResourceFixture fixture, string sessionId, Task<AltaCommandResult> command)
+    private static async Task<SessionOwnedPermissionSnapshot> WaitForCardAsync(SpaceResourceFixture fixture, string sessionId, Task command)
     {
         var deadline = DateTime.UtcNow + TestTime.Seconds(20);
         while (DateTime.UtcNow < deadline)
         {
             if (command.IsCompleted)
             {
-                var ended = await command.ConfigureAwait(false);
-                Assert.Fail($"The command ended without a card: {ended.Stdout}{ended.Stderr}");
+                Assert.Fail("The command ended without a card: " + command switch
+                {
+                    Task<AltaCommandResult> { IsCompletedSuccessfully: true } ended => ended.Result.Stdout + ended.Result.Stderr,
+                    Task<AgentToolResult> { IsCompletedSuccessfully: true } ended => AssertTextItem(ended.Result),
+                    _ => command.Exception?.Message,
+                });
             }
 
             var page = await fixture.Runtime.Permissions.ListOwnedCommandsAsync(sessionId, CancellationToken.None).ConfigureAwait(false);

@@ -62,6 +62,27 @@ public sealed record AltaCommandContext
     public CancellationToken CancellationToken { get; init; }
 
     /// <summary>
+    /// Gets the time limit of the call, whose token is <see cref="CancellationToken"/>; null when the call has none.
+    /// </summary>
+    public AltaTimeLimit? TimeLimit { get; init; }
+
+    /// <summary>
+    /// Stops the time limit of the call while the command waits for the user to answer a card: the user answers when
+    /// they see it, and a card taken back by the limit would read as a denial.
+    /// </summary>
+    /// <returns>What resumes the time limit when disposed.</returns>
+    public IDisposable PauseTimeLimit() => TimeLimit?.Pause() ?? NoPause.Instance;
+
+    private sealed class NoPause : IDisposable
+    {
+        public static NoPause Instance { get; } = new();
+
+        public void Dispose()
+        {
+        }
+    }
+
+    /// <summary>
     /// Gets what attaches the view of an MCP App to the result of the invocation (<see cref="AltaCommandResult.App"/>), so
     /// that the call of the <c>alta</c> tool that ran the command shows it; null when the invocation keeps none.
     /// </summary>

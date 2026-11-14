@@ -133,11 +133,8 @@ public static class AltaSessionToolFactory
             return CreateArgumentError(error);
         }
 
-        using var timeoutCancellation = CreateTimeoutCancellationTokenSource(
-            cancellationToken,
-            timeout,
-            options.DefaultTimeout);
-        var effectiveCancellationToken = timeoutCancellation?.Token ?? cancellationToken;
+        using var timeLimit = (timeout ?? options.DefaultTimeout) is { } limit ? new AltaTimeLimit(limit, cancellationToken) : null;
+        var effectiveCancellationToken = timeLimit?.Token ?? cancellationToken;
 
         var caller = new AltaCallerIdentity
         {
@@ -158,6 +155,7 @@ public static class AltaSessionToolFactory
                 cwd ?? options.WorkingDirectoryProvider?.Invoke() ?? options.WorkingDirectory,
                 maxOutputRecords ?? options.DefaultMaxOutputRecords,
                 maxOutputBytes ?? options.DefaultMaxOutputBytes,
+                timeLimit,
                 effectiveCancellationToken)
             .ConfigureAwait(false);
         var transcript = result.Transcript;
@@ -301,22 +299,6 @@ public static class AltaSessionToolFactory
             ToolName,
             "Call the alta tool with an args string array, for example {\"args\":[\"--help\"]}.");
         return new AgentToolResult(false, [new AgentToolResultItem.Text(writer.ToString())], message);
-    }
-
-    private static CancellationTokenSource? CreateTimeoutCancellationTokenSource(
-        CancellationToken cancellationToken,
-        TimeSpan? timeoutOverride,
-        TimeSpan? defaultTimeout)
-    {
-        var timeout = timeoutOverride ?? defaultTimeout;
-        if (timeout is null)
-        {
-            return null;
-        }
-
-        var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        cancellation.CancelAfter(timeout.Value);
-        return cancellation;
     }
 
     private static string? ExtractErrorMessage(string? error)

@@ -31,6 +31,28 @@ public sealed class AltaCommandDispatcher
         int? maxOutputRecords = null,
         int? maxOutputBytes = null,
         CancellationToken cancellationToken = default)
+        => InvokeAsync(args, stdin, caller, cwd, maxOutputRecords, maxOutputBytes, null, cancellationToken);
+
+    /// <summary>Invokes <c>alta</c> within a time limit and returns help text or a flat JSONL transcript.</summary>
+    /// <param name="args">Command arguments excluding the executable name.</param>
+    /// <param name="stdin">The text the command reads with <c>--stdin</c>.</param>
+    /// <param name="caller">The caller; the host when null.</param>
+    /// <param name="cwd">The folder of the call.</param>
+    /// <param name="maxOutputRecords">The most records of the transcript, when set.</param>
+    /// <param name="maxOutputBytes">The most bytes of the transcript, when set.</param>
+    /// <param name="timeLimit">The time limit of the call, which the command pauses while it waits for the user; null for none.</param>
+    /// <param name="cancellationToken">Cancels the command: the token of <paramref name="timeLimit"/> when there is one.</param>
+    /// <returns>The result of the command.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="args"/> is null.</exception>
+    public ValueTask<AltaCommandResult> InvokeAsync(
+        IReadOnlyList<string> args,
+        string? stdin,
+        AltaCallerIdentity? caller,
+        string? cwd,
+        int? maxOutputRecords,
+        int? maxOutputBytes,
+        AltaTimeLimit? timeLimit,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(args);
         AgentToolAppResult? app = null;
@@ -46,6 +68,7 @@ public sealed class AltaCommandDispatcher
             MaxOutputRecords = maxOutputRecords,
             MaxOutputBytes = maxOutputBytes,
             CancellationToken = cancellationToken,
+            TimeLimit = timeLimit,
             // The last view a command attached is the one of the call.
             AttachApp = attached => app = attached,
         };

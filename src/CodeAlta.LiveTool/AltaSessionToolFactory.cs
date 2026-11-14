@@ -32,6 +32,8 @@ public static class AltaSessionToolFactory
         "and activate CodeAlta-managed skills. Pass CLI-style args excluding `alta`. " +
         "Call a command your instructions already give (such as `alta job start --command ...`) directly, without reading help first; " +
         "read help only for a command or an option they do not give: args [\"--help\"] for the quick-start and the list of commands, then narrower help such as [\"session\",\"send\",\"--help\"]. " +
+        // An agent decides how to split its calls before it reads the help of a command: a card per call is said here.
+        "A command that asks the user on a card (`session delete`, `credential`) asks once per call: give it all its items in one call, never one call per item or calls in parallel. " +
         "Calls are finite/non-streaming; non-help results are compact JSONL headed by alta.result.";
     private const string InputSchemaJson = """
         {
